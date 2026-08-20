@@ -1,0 +1,12 @@
+[semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+major_on_zero = false
+tag_format = "v{version}"
+
+[semantic_release.branches.main]
+match = "^(main|master|act-harness)$"
+prerelease = false
+
+[semantic_release.remote]
+type = "github"
+token = { env = "GH_TOKEN" }

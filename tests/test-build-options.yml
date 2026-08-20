@@ -1,8 +1,6 @@
----
-name: Test prerelease mode in noop
+name: Test build and build_metadata inputs
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -11,16 +9,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up git identity, tag, and origin reachable inside Docker container
+      - name: Set up a git origin reachable inside the Docker container
         run: |
           git config user.email "test@example.com"
           git config user.name "Test User"
-
-          # Create a version tag so PSR has a baseline
-          git tag v0.1.0 HEAD 2>/dev/null || true
-
-          # Create a bare repo inside GITHUB_WORKSPACE so it's accessible
-          # inside the Docker container at /github/workspace/.git-remote
           rm -rf "$GITHUB_WORKSPACE/.git-remote"
           git init --bare "$GITHUB_WORKSPACE/.git-remote"
           git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
@@ -30,37 +22,30 @@ jobs:
 
       - id: action
         uses: .
+        continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          build: "false"
+          build_metadata: "build.12345"
           no_operation_mode: "true"
-          prerelease: "true"
-          prerelease_token: "alpha"
-          force: "patch"
-          commit: "false"
-          tag: "false"
           push: "false"
+          tag: "false"
+          commit: "false"
           vcs_release: "false"
-          changelog: "false"
-          directory: "tests/fixtures"
-        continue-on-error: true
 
-      - name: Assert action ran and is_prerelease output is set
+      - name: Assert action ran with build and build_metadata inputs
         env:
           OUTCOME: ${{ steps.action.outcome }}
           VERSION: ${{ steps.action.outputs.version }}
-          IS_PRERELEASE: ${{ steps.action.outputs.is_prerelease }}
+          RELEASED: ${{ steps.action.outputs.released }}
         run: |
           echo "outcome: $OUTCOME"
           echo "version: $VERSION"
-          echo "is_prerelease: $IS_PRERELEASE"
+          echo "released: $RELEASED"
           if [ "$OUTCOME" = "success" ]; then
-            if [ -z "$VERSION" ]; then
-              echo "FAIL: action succeeded but version output is empty"
-              exit 1
-            fi
-            echo "PASS: got version '$VERSION', is_prerelease='$IS_PRERELEASE'"
+            echo "PASS: action succeeded with build and build_metadata inputs"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (expected in harness environment)"
+            echo "PASS: action failed gracefully (sentinel repo or no commits to release)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

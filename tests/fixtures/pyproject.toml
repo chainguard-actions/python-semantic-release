@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "test-project"
+version = "0.1.0"
+
+[tool.semantic_release]
+version_variables = []
+build_command = ""
+tag_format = "v{version}"
+major_on_zero = false
+
+[tool.semantic_release.branches.main]
+match = "^(main|master|act-harness)$"
+prerelease = false
+prerelease_token = "rc"
+
+[tool.semantic_release.branches.dev]
+match = ".+"
+prerelease = true
+prerelease_token = "dev"
+
+[tool.semantic_release.remote]
+type = "github"
+token = { env = "GH_TOKEN" }

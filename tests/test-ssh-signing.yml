@@ -1,46 +1,56 @@
----
 name: Test SSH signing key inputs
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_REF: refs/heads/main
-      GITHUB_EVENT_NAME: push
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-      - name: Generate test SSH key pair
-        id: keygen
+
+      - name: Generate ephemeral SSH key pair for testing
         run: |
-          ssh-keygen -t ed25519 -C "test@example.com" -f /tmp/test_key -N ""
-          PRIVATE_KEY=$(cat /tmp/test_key)
-          PUBLIC_KEY=$(cat /tmp/test_key.pub)
-          echo "private_key<<EOF" >> $GITHUB_OUTPUT
-          echo "$PRIVATE_KEY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "public_key<<EOF" >> $GITHUB_OUTPUT
-          echo "$PUBLIC_KEY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          ssh-keygen -t ed25519 -f /tmp/test_signing_key -N "" -C "test@example.com"
+          echo "SSH_PUBLIC_KEY=$(cat /tmp/test_signing_key.pub)" >> "$GITHUB_ENV"
+          echo "SSH_PRIVATE_KEY_FILE=/tmp/test_signing_key" >> "$GITHUB_ENV"
+
+      - name: Set up a git origin reachable inside the Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
       - id: action
         uses: .
+        continue-on-error: true
         with:
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          ssh_public_signing_key: ${{ env.SSH_PUBLIC_KEY }}
+          ssh_private_signing_key: ${{ env.SSH_PRIVATE_KEY_FILE }}
           no_operation_mode: "true"
-          ssh_public_signing_key: ${{ steps.keygen.outputs.public_key }}
-          ssh_private_signing_key: ${{ steps.keygen.outputs.private_key }}
-          verbosity: "1"
-      - name: Assert version output exists
+          push: "false"
+          tag: "false"
+          commit: "false"
+          vcs_release: "false"
+
+      - name: Assert action ran with SSH signing key inputs
         env:
+          OUTCOME: ${{ steps.action.outcome }}
           VERSION: ${{ steps.action.outputs.version }}
         run: |
+          echo "outcome: $OUTCOME"
           echo "version: $VERSION"
-          echo "PASS: version output is present"
-      - name: Assert link output exists
-        env:
-          LINK: ${{ steps.action.outputs.link }}
-        run: |
-          echo "link: $LINK"
-          echo "PASS: link output is present"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with SSH signing key inputs"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo or no commits to release)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

@@ -1,6 +1,11 @@
 {
   "owner": "python-semantic-release",
   "repo": "python-semantic-release",
-  "version": "",
-  "url": "https://github.com/python-semantic-release/python-semantic-release"
+  "version": "v10.5.0",
+  "commit_sha": "eb841f9a95650921ff7e7fc94208b6560366a854",
+  "url": "https://github.com/python-semantic-release/python-semantic-release",
+  "policy_sha": "d636be7e43ef829af6e853da6b3c7566db9f72fe",
+  "test_policy_sha": "843adf9e4b8f85d0c08b27b9d0b09dd094b54702",
+  "test_agent_version": "2",
+  "harden_agent_version": "2"
 }

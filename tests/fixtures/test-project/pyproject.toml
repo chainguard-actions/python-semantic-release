@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "test-project"
+version = "1.0.0"
+
+[tool.semantic_release]
+version_variables = []
+commit_parser = "angular"
+tag_format = "v{version}"
+major_on_zero = true
+
+[tool.semantic_release.branches.main]
+match = "^(main|master)$"
+prerelease = false
+prerelease_token = "rc"
+
+[tool.semantic_release.branches.harness]
+match = "^act-harness$"
+prerelease = false
+prerelease_token = "rc"
+
+[tool.semantic_release.branches.dev]
+match = ".+"
+prerelease = true
+prerelease_token = "dev"
+
+[tool.semantic_release.remote]
+type = "github"
+token = { env = "GH_TOKEN" }

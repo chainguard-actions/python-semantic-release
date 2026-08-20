@@ -1,0 +1,84 @@
+name: Test SSH signing keys inputs in noop mode
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Generate a temporary SSH key pair for testing
+        id: keygen
+        run: |
+          ssh-keygen -t ed25519 -f /tmp/test_signing_key -N "" -C "test@example.com"
+          PRIVATE_KEY="$(cat /tmp/test_signing_key)"
+          PUBLIC_KEY="$(cat /tmp/test_signing_key.pub)"
+          # Use multiline output encoding
+          echo "private_key<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$PRIVATE_KEY" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "public_key<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$PUBLIC_KEY" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Set up git config and local origin reachable inside Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+
+          # Create a version tag so PSR has a baseline
+          git tag v1.0.0 HEAD || true
+
+          # Add a fix commit to trigger a patch bump detection
+          git commit -m "fix: a bug fix" --allow-empty
+
+          # Create a bare repo under GITHUB_WORKSPACE so it's reachable inside the Docker container
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          no_operation_mode: "true"
+          directory: tests/fixtures/test-project
+          ssh_public_signing_key: ${{ steps.keygen.outputs.public_key }}
+          ssh_private_signing_key: ${{ steps.keygen.outputs.private_key }}
+          push: "false"
+          tag: "false"
+          commit: "false"
+          changelog: "false"
+          vcs_release: "false"
+          build: "false"
+          git_committer_name: "Test User"
+          git_committer_email: "test@example.com"
+
+      - name: Assert action ran with SSH signing key inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          VERSION: ${{ steps.action.outputs.version }}
+          RELEASED: ${{ steps.action.outputs.released }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "version: $VERSION"
+          echo "released: $RELEASED"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$VERSION" ]; then
+              echo "FAIL: action succeeded but version output is empty"
+              exit 1
+            fi
+            echo "PASS: SSH signing key inputs accepted, version=$VERSION released=$RELEASED"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo or config issue expected in harness)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

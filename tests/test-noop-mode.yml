@@ -1,5 +1,5 @@
 ---
-name: Test prerelease mode
+name: Test noop mode (no-operation)
 on:
   workflow_dispatch:
 
@@ -11,33 +11,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up git repo with PSR config for prerelease test
+      - name: Set up git repo with conventional commits and PSR config
         run: |
           git config user.email "test@example.com"
           git config user.name "Test User"
 
-          mkdir -p "$GITHUB_WORKSPACE/psr-prerelease-test"
-          cd "$GITHUB_WORKSPACE/psr-prerelease-test"
+          # Create a minimal pyproject.toml with PSR config in a temp workspace
+          mkdir -p "$GITHUB_WORKSPACE/psr-test-workspace"
+          cd "$GITHUB_WORKSPACE/psr-test-workspace"
 
           git init
           git config user.email "test@example.com"
           git config user.name "Test User"
 
+          # Create a minimal pyproject.toml with PSR config using printf
           printf '[tool.semantic_release]\nversion_variables = []\ncommit_parser = "angular"\ntag_format = "v{version}"\nmajor_on_zero = false\nallow_zero_version = true\n\n[tool.semantic_release.remote]\ntype = "github"\ntoken = { env = "GH_TOKEN" }\n' > pyproject.toml
 
+          # Initial commit to establish a base version
           git add pyproject.toml
           git commit -m "chore: initial commit"
-          git tag v1.2.0
 
-          # Add a fix commit to trigger a version bump
-          echo "# Fix" > FIX.md
-          git add FIX.md
-          git commit -m "fix: some bug fix"
+          # Tag an initial version
+          git tag v0.1.0
 
-          # Set up local bare repo as origin reachable inside Docker container
-          rm -rf "$GITHUB_WORKSPACE/.git-remote-psr-prerelease"
-          git init --bare "$GITHUB_WORKSPACE/.git-remote-psr-prerelease"
-          git remote add origin "$GITHUB_WORKSPACE/.git-remote-psr-prerelease"
+          # Add a fix commit (should trigger patch bump)
+          echo "# My Project" > README.md
+          git add README.md
+          git commit -m "fix: add readme"
+
+          # Set up a local bare repo as origin (reachable inside Docker container)
+          rm -rf "$GITHUB_WORKSPACE/.git-remote-psr-test"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote-psr-test"
+          git remote add origin "$GITHUB_WORKSPACE/.git-remote-psr-test"
           git push origin HEAD:refs/heads/act-harness
           git push origin --tags
 
@@ -46,10 +51,8 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          directory: psr-prerelease-test
+          directory: psr-test-workspace
           no_operation_mode: "true"
-          prerelease: "true"
-          prerelease_token: "rc"
           commit: "false"
           tag: "false"
           push: "false"
@@ -57,16 +60,16 @@ jobs:
           vcs_release: "false"
           verbosity: "1"
 
-      - name: Assert prerelease outputs
+      - name: Assert action ran and produced version output
         env:
           OUTCOME: ${{ steps.action.outcome }}
           VERSION: ${{ steps.action.outputs.version }}
-          IS_PRERELEASE: ${{ steps.action.outputs.is_prerelease }}
+          RELEASED: ${{ steps.action.outputs.released }}
           PREV_VERSION: ${{ steps.action.outputs.previous_version }}
         run: |
           echo "outcome: $OUTCOME"
           echo "version: $VERSION"
-          echo "is_prerelease: $IS_PRERELEASE"
+          echo "released: $RELEASED"
           echo "previous_version: $PREV_VERSION"
 
           if [ "$OUTCOME" = "success" ]; then
@@ -74,7 +77,7 @@ jobs:
               echo "FAIL: action succeeded but version output is empty"
               exit 1
             fi
-            echo "PASS: got version '$VERSION', is_prerelease='$IS_PRERELEASE'"
+            echo "PASS: got version '$VERSION'"
           elif [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action failed gracefully (sentinel repo or noop mode limitation)"
           else

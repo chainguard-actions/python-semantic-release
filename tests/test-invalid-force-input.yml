@@ -1,0 +1,68 @@
+---
+name: Test invalid verbosity input error handling
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git repo with PSR config for invalid verbosity test
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+
+          mkdir -p "$GITHUB_WORKSPACE/psr-invalid-test"
+          cd "$GITHUB_WORKSPACE/psr-invalid-test"
+
+          git init
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+
+          printf '[tool.semantic_release]\nversion_variables = []\ncommit_parser = "angular"\ntag_format = "v{version}"\nmajor_on_zero = false\nallow_zero_version = true\n\n[tool.semantic_release.remote]\ntype = "github"\ntoken = { env = "GH_TOKEN" }\n' > pyproject.toml
+
+          git add pyproject.toml
+          git commit -m "chore: initial commit"
+          git tag v1.0.0
+
+          # Set up local bare repo as origin reachable inside Docker container
+          rm -rf "$GITHUB_WORKSPACE/.git-remote-psr-invalid"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote-psr-invalid"
+          git remote add origin "$GITHUB_WORKSPACE/.git-remote-psr-invalid"
+          git push origin HEAD:refs/heads/act-harness
+          git push origin --tags
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          directory: psr-invalid-test
+          no_operation_mode: "true"
+          verbosity: "not-a-number"
+          commit: "false"
+          tag: "false"
+          push: "false"
+          changelog: "false"
+          vcs_release: "false"
+
+      - name: Assert action fails with invalid verbosity input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action.sh validates verbosity must be a positive integer
+          # "not-a-number" should cause the action to exit 1
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed with invalid verbosity input"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed with non-numeric verbosity 'not-a-number'"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

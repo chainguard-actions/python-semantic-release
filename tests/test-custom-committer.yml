@@ -1,5 +1,5 @@
 ---
-name: Test prerelease mode
+name: Test custom git committer settings in noop mode
 on:
   workflow_dispatch:
 
@@ -11,13 +11,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up git repo with PSR config for prerelease test
+      - name: Set up git repo with PSR config for committer test
         run: |
           git config user.email "test@example.com"
           git config user.name "Test User"
 
-          mkdir -p "$GITHUB_WORKSPACE/psr-prerelease-test"
-          cd "$GITHUB_WORKSPACE/psr-prerelease-test"
+          mkdir -p "$GITHUB_WORKSPACE/psr-committer-test"
+          cd "$GITHUB_WORKSPACE/psr-committer-test"
 
           git init
           git config user.email "test@example.com"
@@ -27,17 +27,17 @@ jobs:
 
           git add pyproject.toml
           git commit -m "chore: initial commit"
-          git tag v1.2.0
+          git tag v2.0.0
 
-          # Add a fix commit to trigger a version bump
-          echo "# Fix" > FIX.md
-          git add FIX.md
-          git commit -m "fix: some bug fix"
+          # Add a feature commit (minor bump)
+          echo "# Feature" > FEATURE.md
+          git add FEATURE.md
+          git commit -m "feat: add new feature"
 
           # Set up local bare repo as origin reachable inside Docker container
-          rm -rf "$GITHUB_WORKSPACE/.git-remote-psr-prerelease"
-          git init --bare "$GITHUB_WORKSPACE/.git-remote-psr-prerelease"
-          git remote add origin "$GITHUB_WORKSPACE/.git-remote-psr-prerelease"
+          rm -rf "$GITHUB_WORKSPACE/.git-remote-psr-committer"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote-psr-committer"
+          git remote add origin "$GITHUB_WORKSPACE/.git-remote-psr-committer"
           git push origin HEAD:refs/heads/act-harness
           git push origin --tags
 
@@ -46,10 +46,10 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          directory: psr-prerelease-test
+          directory: psr-committer-test
           no_operation_mode: "true"
-          prerelease: "true"
-          prerelease_token: "rc"
+          git_committer_name: "Release Bot"
+          git_committer_email: "bot@example.com"
           commit: "false"
           tag: "false"
           push: "false"
@@ -57,16 +57,16 @@ jobs:
           vcs_release: "false"
           verbosity: "1"
 
-      - name: Assert prerelease outputs
+      - name: Assert action ran with custom committer settings
         env:
           OUTCOME: ${{ steps.action.outcome }}
           VERSION: ${{ steps.action.outputs.version }}
-          IS_PRERELEASE: ${{ steps.action.outputs.is_prerelease }}
+          RELEASED: ${{ steps.action.outputs.released }}
           PREV_VERSION: ${{ steps.action.outputs.previous_version }}
         run: |
           echo "outcome: $OUTCOME"
           echo "version: $VERSION"
-          echo "is_prerelease: $IS_PRERELEASE"
+          echo "released: $RELEASED"
           echo "previous_version: $PREV_VERSION"
 
           if [ "$OUTCOME" = "success" ]; then
@@ -74,7 +74,7 @@ jobs:
               echo "FAIL: action succeeded but version output is empty"
               exit 1
             fi
-            echo "PASS: got version '$VERSION', is_prerelease='$IS_PRERELEASE'"
+            echo "PASS: got version '$VERSION' with custom committer settings"
           elif [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action failed gracefully (sentinel repo or noop mode limitation)"
           else

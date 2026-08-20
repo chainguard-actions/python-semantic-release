@@ -1,0 +1,23 @@
+---
+
+build:
+    - MANIFEST.in
+    - scripts/**
+docs:
+    - docs/**
+    - README.rst
+    - AUTHORS.rst
+    - CONTRIBUTING.rst
+    - CHANGELOG.rst
+gha_src:
+    - src/gh_action/**
+src:
+    - src/semantic_release/**
+    - pyproject.toml
+gha_tests:
+    - tests/gh_action/**
+tests:
+    - tests/e2e/**
+    - tests/fixtures/**
+    - tests/unit/**
+    - tests/*.py

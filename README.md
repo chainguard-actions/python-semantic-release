@@ -8,7 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
-| v10.4.1 | [`v10.4.1`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.4.1) | — |
+| v10.4.1 | [`v10.4.1`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.4.1) | [`4d4cb0a`](https://github.com/python-semantic-release/python-semantic-release/commit/4d4cb0ab842247caea1963132c242c62aab1e4d5) |
 | v10.5.0 | [`v10.5.0`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.5.0) | — |
 | v10.5.1 | [`v10.5.1`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.5.1) | — |
 | v10.5.2 | [`v10.5.2`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.5.2) | — |

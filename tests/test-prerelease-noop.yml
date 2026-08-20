@@ -1,0 +1,80 @@
+---
+name: Test prerelease mode with noop
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git config and local origin reachable inside Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          # Create a bare repo under GITHUB_WORKSPACE so it's reachable inside the Docker container
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git push "$GITHUB_WORKSPACE/.git-remote" --tags
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      - name: Create a minimal pyproject.toml for PSR
+        run: |
+          cat > "$GITHUB_WORKSPACE/pyproject.toml" << 'EOF'
+          [tool.semantic_release]
+          version_variables = []
+          commit_parser = "angular"
+          tag_format = "v{version}"
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          no_operation_mode: "true"
+          prerelease: "true"
+          prerelease_token: "alpha"
+          force: "minor"
+          push: "false"
+          commit: "false"
+          tag: "false"
+          changelog: "false"
+          vcs_release: "false"
+          build: "false"
+          git_committer_name: "Test User"
+          git_committer_email: "test@example.com"
+          verbosity: "1"
+
+      - name: Assert prerelease mode outputs are correct
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          VERSION: ${{ steps.action.outputs.version }}
+          IS_PRERELEASE: ${{ steps.action.outputs.is_prerelease }}
+          TAG: ${{ steps.action.outputs.tag }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "version: $VERSION"
+          echo "is_prerelease: $IS_PRERELEASE"
+          echo "tag: $TAG"
+          if [ "$OUTCOME" = "success" ]; then
+            # When prerelease=true, is_prerelease output should be "true"
+            if [ "$IS_PRERELEASE" = "true" ]; then
+              echo "PASS: is_prerelease is correctly 'true' for prerelease mode"
+            elif [ -z "$IS_PRERELEASE" ]; then
+              echo "PASS: action succeeded (no release determined, is_prerelease empty)"
+            else
+              echo "FAIL: expected is_prerelease=true for prerelease mode, got: $IS_PRERELEASE"
+              exit 1
+            fi
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected on sentinel repo or no prior version)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

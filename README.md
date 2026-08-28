@@ -14,6 +14,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v10.5.2 | [`v10.5.2`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.5.2) | [`02f2a5c`](https://github.com/python-semantic-release/python-semantic-release/commit/02f2a5c74dbb6aa2989f10fc4af12cd8e6bf025f) |
 | v10.5.3 | [`v10.5.3`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.5.3) | [`350c48f`](https://github.com/python-semantic-release/python-semantic-release/commit/350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0) |
 | v10.6.1 | [`v10.6.1`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.6.1) | [`39dd205`](https://github.com/python-semantic-release/python-semantic-release/commit/39dd2052f2ce8282a5d932c31d58a2ca06d2550e) |
+| v10.6.2 | [`v10.6.2`](https://github.com/chainguard-actions/python-semantic-release-python-semantic-release/tree/v10.6.2) | [`9a026e9`](https://github.com/python-semantic-release/python-semantic-release/commit/9a026e9303981c866c3425723009becb2437c757) |
 
 ## Privacy
 

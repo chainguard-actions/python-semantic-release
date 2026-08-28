@@ -1,0 +1,3 @@
+[tool.semantic_release]
+version_variables = []
+commit_parser = "angular"

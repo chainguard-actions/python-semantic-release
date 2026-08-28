@@ -1,0 +1,105 @@
+---
+default_language_version:
+  python: python3
+
+exclude: "^CHANGELOG.md$"
+
+repos:
+  # Meta hooks
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes
+
+  # Security & credential scanning/alerting
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: debug-statements
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+      - id: detect-private-key
+      - id: check-builtin-literals
+      - id: check-yaml
+      - id: check-toml
+      - id: check-case-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+      - id: check-ast
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.16.0
+    hooks:
+      - id: pyupgrade
+        args: ["--py38-plus", "--keep-runtime-typing"]
+
+  # Linters and validation
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.1
+    hooks:
+      - id: ruff
+        name: ruff (lint)
+        args:
+          - "--fix"
+          - "--exit-non-zero-on-fix"
+          - "--statistics"
+          - "--output-format=full"
+      - id: ruff-format
+        name: ruff (format)
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: "v1.16.1"
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - "pydantic>=2,<3"
+          - "types-requests"
+        log_file: "mypy.log"
+        files: "^(src|tests)/.*"
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      # - id: python-use-type-annotations
+      - id: python-check-blanket-noqa
+      - id: python-check-mock-methods
+      - id: python-no-eval
+      - id: python-no-log-warn
+      - id: rst-backticks
+      - id: rst-directive-colons
+      - id: rst-inline-touching-normal
+
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: "v2.11"
+    hooks:
+      - id: vulture
+        args:
+          - --min-confidence
+          - "100"
+          - --sort-by-size
+          - "semantic_release"
+          - "tests"
+
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.8
+    hooks:
+      - id: bandit
+        args:
+          - "-c"
+          - "pyproject.toml"
+          - "--quiet"
+          - "src/"
+        # Needed if using pyproject.toml for config
+        additional_dependencies: ["bandit[toml]"]
+        pass_filenames: false
+
+  # GHA linting
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: "0.28.0"
+    hooks:
+      - id: check-github-workflows
+      - id: check-readthedocs
+      - id: check-dependabot
